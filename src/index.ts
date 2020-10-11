@@ -3,13 +3,16 @@ import logo from '../assets/logox200.png';
 import wallpaper from './wallpaper'
 import fs from 'fs-extra'
 import { basename, join } from 'path'
-import { downloadImage, getCategories, getImages, initialize } from './sources/wallpaperscraft';
+import { WallpaperCraft } from './sources/wallpaperscraft';
+import { Category } from './types';
+
+const source = new WallpaperCraft()
 
 class State {
-  static categories: { id: string }[] = []
+  static categories: Category[] = []
   static interval: number = 0
 
-  static getRandomCategory(): { id: string } | undefined {
+  static getRandomCategory(): Category | undefined {
     return this.categories[Math.floor(Math.random() * this.categories.length)]
   }
 }
@@ -33,7 +36,7 @@ async function openWindow() {
   const qApp = QApplication.instance();
   qApp.setQuitOnLastWindowClosed(false);
 
-  const categories = await getCategories()
+  const categories = await source.getCategories()
 
   const win = new QMainWindow();
   win.setWindowTitle("Dynamic wallpaper");
@@ -75,7 +78,7 @@ async function openWindow() {
     if (!category) throw new Error('cannot find category')
 
     if (checked)
-      State.categories.push({ id: category.id })
+      State.categories.push(category)
     else
       State.categories.splice(State.categories.findIndex(c => c.id === category.id), 1)
   })
@@ -98,14 +101,14 @@ async function openWindow() {
 
 async function nextWallpaper() {
   const randomCategory = State.getRandomCategory()
-  const { pagesCount } = await initialize(randomCategory ? randomCategory.id : null)
+  const { pagesCount } = await source.getCategoryDetails(randomCategory ? randomCategory : null)
   const randomPage = Math.ceil(Math.random() * pagesCount)
   
-  const images = await getImages(randomCategory ? randomCategory.id : null, randomPage)
+  const images = await source.getImages(randomCategory ? randomCategory : null, randomPage)
 
   const randomImageId = images[Math.floor(Math.random() * images.length)]
 
-  const image = await downloadImage(randomImageId)
+  const image = await source.downloadImage(randomImageId)
 
   const cwd = process.cwd()
 
