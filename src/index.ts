@@ -1,15 +1,15 @@
 import { QApplication, QMainWindow, QWidget, FlexLayout, QSystemTrayIcon, QIcon, QMenu, QAction, QLineEdit, QListWidget, QListWidgetItem } from '@nodegui/nodegui';
 import logo from '../assets/logox200.png';
 import wallpaper from './wallpaper'
-import fs from 'fs-extra'
-import { basename, join } from 'path'
 import { WallpaperCraft } from './sources/wallpaperscraft';
 import { createInterval } from './utils/interval';
 import { CategoriesCollection } from './categories-collection';
+import { ImageStorage } from './image-storage';
 
 const source = new WallpaperCraft()
 const interval = createInterval(nextWallpaper)
 const categoriesCollection = new CategoriesCollection()
+const imageStorage = new ImageStorage()
 
 async function openWindow() {
   const qApp = QApplication.instance();
@@ -34,7 +34,6 @@ async function openWindow() {
   })
 
   const list = new QListWidget()
-
 
   source.getCategories().then(categories => {
     categories.forEach(c => {
@@ -85,13 +84,9 @@ async function nextWallpaper() {
   const randomImageId = images[Math.floor(Math.random() * images.length)]
 
   const image = await source.downloadImage(randomImageId)
+  const path = await imageStorage.saveTemporary(randomImageId, image)
 
-  const cwd = process.cwd()
-
-  await fs.ensureDir(join(cwd, 'tmp'))
-  await fs.writeFile(join(cwd, 'tmp', randomImageId + '.jpg'), image)
-
-  await wallpaper.set(join(cwd, 'tmp', randomImageId + '.jpg'))
+  await wallpaper.set(path)
 }
 
 
@@ -112,11 +107,9 @@ async function nextWallpaper() {
   const saveAct = new QAction()
   saveAct.setText('Save current wallpaper')
   saveAct.addEventListener('triggered', async () => {
-    const cwd = process.cwd()
-
-    await fs.ensureDir(join(cwd, 'saved'))
     const source = await wallpaper.get()
-    await fs.copyFile(source, join(cwd, 'saved', basename(source)))
+
+    await imageStorage.save(source)
   })
   
   const settingsAct = new QAction()
