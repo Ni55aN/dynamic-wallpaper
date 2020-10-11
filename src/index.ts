@@ -5,32 +5,18 @@ import fs from 'fs-extra'
 import { basename, join } from 'path'
 import { WallpaperCraft } from './sources/wallpaperscraft';
 import { Category } from './types';
+import { createInterval } from './utils/interval';
 
 const source = new WallpaperCraft()
+const interval = createInterval(nextWallpaper)
 
 class State {
   static categories: Category[] = []
-  static interval: number = 0
 
   static getRandomCategory(): Category | undefined {
     return this.categories[Math.floor(Math.random() * this.categories.length)]
   }
 }
-
-
-let timeout: NodeJS.Timeout | null = null
-
-async function startAutoUpdate() {
-  timeout && clearTimeout(timeout)
-
-  if (State.interval !== 0) {
-    timeout = setTimeout(async () => {
-      await nextWallpaper()
-      startAutoUpdate()
-    }, State.interval * 1000)
-  }
-}
-
 
 async function openWindow() {
   const qApp = QApplication.instance();
@@ -49,12 +35,11 @@ async function openWindow() {
   centralWidget.setLayout(rootLayout);
 
   const input = new QLineEdit();
-  input.setText(String(State.interval))
+  input.setText(String(interval.getDelay()))
   input.setPlaceholderText('Wallpaper update interval (seconds, 0 - dont update)');
 
   input.addEventListener('textChanged', () => {
-    State.interval = +input.text() || 0
-    startAutoUpdate()
+    interval.set(+input.text() || 0)
   })
 
   const list = new QListWidget()
